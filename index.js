@@ -12,12 +12,14 @@ fs.readFile(path.join(__dirname, 'map.txt'), 'utf8', function (err, data) {
     row
       .split(' ')
       .filter(s => s.length)
-      .map(i => parseInt(i))
+      .map(i => parseInt(i, 10))
   )
   console.log(parsed.length, parsed[0].length)
-  console.log(solve(parsed))
+
+  // console.log(solve(parsed))
+  const data2 = [[4, 8, 7, 3], [2, 5, 9, 3], [6, 3, 2, 5], [4, 4, 1, 6]]
+  console.log(solve(data2))
 })
-// const data = [[4, 8, 7, 3], [2, 5, 9, 3], [6, 3, 2, 5], [4, 4, 1, 6]]
 
 function solve (data) {
   const ROWS = data.length
@@ -63,27 +65,35 @@ function solve (data) {
             graph[[row, col]].push([row + 1, col])
           }
         }
+        if (row - 1 > -1) {
+          const up = data[row - 1][col]
+          if (curr > up) {
+            points.push([row - 1, col])
+            graph[[row, col]].push([row - 1, col])
+          }
+        }
       }
-
-      solutions.push(traverseGraph(graph, [i, j]))
+      const [bestStep, bestEnd] = traverseGraph(graph, [i, j])
+      solutions.push([bestStep, data[i][j] - data[bestEnd[0]][bestEnd[1]]])
     }
   }
 
   function traverseGraph (graph, key, steps = 1) {
     const choices = graph[key]
     let bestStep = steps
-    let bestDepth = 0
+    let bestEnd = key
     for (let choice of choices) {
-      const [step, depth] = traverseGraph(graph, choice, steps + 1)
+      const [step, end] = traverseGraph(graph, choice, steps + 1)
       if (step > bestStep) {
         bestStep = step
-        bestDepth = Math.abs(data[choice[0]][choice[1]] - data[key[0]][key[1]])
+        bestEnd = end
       }
     }
-    return [bestStep, bestDepth]
+    return [bestStep, bestEnd]
   }
+
   const top = solutions
     .sort((a, b) => (a[0] === b[0] ? b[1] - a[1] : b[0] - a[0]))
-    .slice(0, 3)
+    .slice(0, 5)
   return top
 }
