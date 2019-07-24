@@ -15,10 +15,9 @@ fs.readFile(path.join(__dirname, 'map.txt'), 'utf8', function (err, data) {
       .map(i => parseInt(i, 10))
   )
   console.log(parsed.length, parsed[0].length)
-
-  // console.log(solve(parsed))
-  const data2 = [[4, 8, 7, 3], [2, 5, 9, 3], [6, 3, 2, 5], [4, 4, 1, 6]]
-  console.log(solve(data2))
+  console.log(solve(parsed))
+  // const data2 = [[4, 8, 7, 3], [2, 5, 9, 3], [6, 3, 2, 5], [4, 4, 1, 6]]
+  // console.log(solve(data2))
 })
 
 function solve (data) {
