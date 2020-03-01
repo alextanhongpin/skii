@@ -1,28 +1,54 @@
+// One way is to brute-force your way through.
+// Here's how I approach this problem.
+// - perform recursion until it reaches the termination condition.
+// - termination condition is defined as no valid moves - note we don't need to worry about sliding backwards, because the condition is that you can only go downhill!
+// - once we have a list of results, just sort it by depth, and the drop value.
+
 const fs = require('fs')
 const input = fs.readFileSync('data.txt', 'utf-8')
+// const input = `4 4
+// 4 8 7 3
+// 2 5 9 3
+// 6 3 2 5
+// 4 4 1 6`
+
+const trim = str => str.trim()
+const splitLine = str => str.split('\n')
+const splitSpace = str => str.split(' ')
+const toInt = str => parseInt(str, 10)
 
 function solve (input) {
-  const [first, ...rest] = input
-    .split('\n')
-    .map(i => i.trim())
+  const [first, ...rest] = splitLine(input)
+    .map(trim)
     .filter(Boolean)
-  const data = rest.map(s =>
-    s
-      .split(' ')
-      .map(s => s.trim())
+  const data = rest.map(str =>
+    splitSpace(str)
+      .map(trim)
       .filter(Boolean)
-      .map(i => parseInt(i))
+      .map(toInt)
   )
-  const [x, y] = first.split(' ').map(s => parseInt(s))
-  const minDimension = Math.min(x, y)
+  const [rows, columns] = first.split(' ').map(toInt)
+  const isSquare = rows === columns
+  if (!isSquare) throw new Error('must be square')
 
-  const results = []
-  for (let [i, row] of Object.entries(data)) {
-    if (row.length !== minDimension)
-      throw new Error(`invalid dimension: ${i} ${row.length}`)
-    for (let [j] of Object.entries(row)) {
-      const result = skii(data, parseInt(i), parseInt(j), minDimension, 1)
-      results.push(result)
+  const dimension = rows
+  const depth = 1
+
+  const output = {
+    paths: [],
+    maxDepth: 0
+  }
+  
+  for (let i = 0; i < dimension; i += 1) {
+    for (let j = 0; j < dimension; j += 1) {
+      skii({
+        data,
+        i,
+        j,
+        n: dimension,
+        depth,
+        output
+      })
     }
   }
 
@@ -33,44 +59,31 @@ function solve (input) {
       return left + (right - scores[i + 1])
     }, 0)
   }
-
-  const maxDepth = results.sort((l, r) => r.depth - l.depth)[0].depth
-  // We may have more than one result with the longest length, so we need to compute the depth difference and take only the steepest.
-  const longestLength = results.filter(i => i.depth === maxDepth)
-  const mostSteep = longestLength
-    .map(i => ({
-      ...i,
-      score: computeScore(i.moves.map(([i, j]) => data[i][j]))
-    }))
-    .sort((l, r) => {
-      return r.score - l.score
-    })
-
-  const bestResult = mostSteep[0].moves.forEach(([i, j]) => {
-    console.log(`${visitKey(i, j)}: ${data[i][j]}`)
-  })
-  return mostSteep[0]
-}
-const sol = solve(input)
-console.log(
-  `length=${sol.depth} drop=${sol.score} ${sol.depth}${sol.score}@redmart.com`
-)
-
-function visitKey (i, j) {
-  return `(${i},${j})`
+  const results = output.paths.map(({ path, depth }) => ({
+    path,
+    depth,
+    score: computeScore(path.map(([i, j]) => data[i][j]))
+  }))
+  
+  // Sort by the length of the longest path, then by the deepest drop.
+  return results.sort((left, right) =>
+    right.depth - left.depth === 0
+      ? right.score - left.score
+      : right.depth - left.depth
+  )[0]
 }
 
-function skii (data, i, j, n, depth, visited = {}) {
-  const isVisited = (i, j) => !!visited[visitKey(i, j)]
+console.log(solve(input))
 
+function skii ({ data, i, j, n, depth, output = {}, path = [] }) {
   const prev = data[i] && data[i][j]
   const prevMove = [i, j]
-  const isDownhill = (i, j) => prev > (data[i] && data[i][j])
 
+  const isDownhill = (i, j) => prev > (data[i] && data[i][j])
   const isWithinBoundary = (i, j) => i >= 0 && i < n && j >= 0 && j < n
 
-  const canMove = (i, j) =>
-    isWithinBoundary(i, j) && !isVisited(i, j) && isDownhill(i, j)
+  const canMove = (i, j) => isWithinBoundary(i, j) && isDownhill(i, j)
+  const currentPath = path.concat([prevMove])
 
   const moves = [
     [i - 1, j],
@@ -79,23 +92,30 @@ function skii (data, i, j, n, depth, visited = {}) {
     [i, j + 1]
   ]
 
-  let result = []
+  // Termination condition.
+  const quit = moves.map(([i, j]) => !canMove(i, j)).every(Boolean)
+  if (quit) {
+    // Prune results.
+    if (currentPath.length < output.maxDepth) return
+
+    output.maxDepth = currentPath.length
+    output.paths.push({ path: currentPath, depth })
+
+    return
+  }
+
   for (let [i, j] of moves) {
     if (!canMove(i, j)) continue
-    const newVisited = {
-      ...visited,
-      [visitKey(i, j)]: true
-    }
-    const next = skii(data, i, j, n, depth + 1, newVisited)
-    result.push({
-      moves: [prevMove, ...next.moves],
-      depth: next.depth
+
+    // Go down the hill!
+    skii({
+      data,
+      i,
+      j,
+      n,
+      depth: depth + 1,
+      path: currentPath,
+      output
     })
   }
-  if (!result.length)
-    return {
-      moves: [[i, j]],
-      depth
-    }
-  return result.sort((a, b) => b.depth - a.depth)[0]
 }
